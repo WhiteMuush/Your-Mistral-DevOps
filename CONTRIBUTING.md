@@ -15,7 +15,7 @@ Install into a throwaway directory, without touching your real configuration:
 VIBE_HOME=/tmp/vibe-test bash install.sh
 ```
 
-For a change to the system prompt or to a skill, attach a **differential test** to the pull request: a question whose answer differs depending on whether the rule is active, along with both observed answers. See the wiki page "Les skills" for the method.
+For a change to the system prompt or to a skill, attach a **differential test** to the pull request: a question whose answer differs depending on whether the rule is active, along with both observed answers. See the wiki page [The skills](https://github.com/WhiteMuush/Your-Mistral-DevOps/wiki/The-skills) for the method.
 
 ## Conventions
 
