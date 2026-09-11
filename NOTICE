@@ -1,8 +1,10 @@
-Your Mistral DevOps Teacher
+Your Mistral DevOps
 Copyright 2026 WhiteMuush (Melvin Petit)
 
-Ce dépôt inclut du contenu dérivé de Mistral Vibe (https://github.com/mistralai/vibe),
-sous licence Apache-2.0, Copyright Mistral AI :
+This repository includes content derived from Mistral Vibe
+(https://github.com/mistralai/vibe), licensed under Apache-2.0,
+Copyright Mistral AI:
 
-- vibe/prompts/cli-caveman.md contient le system prompt intégré de Mistral Vibe
-  (version 2.19.1), copié tel quel puis étendu de quatre sections custom.
+- vibe/prompts/cli-caveman.md contains the built-in system prompt of Mistral
+  Vibe (version 2.19.1), copied as is and then extended with four custom
+  sections.

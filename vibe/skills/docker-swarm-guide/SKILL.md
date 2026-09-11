@@ -1,89 +1,89 @@
 ---
 name: docker-swarm-guide
-description: Orchestration avec Docker Swarm incluant services, stacks, overlay networks, secrets, rolling updates et haute disponibilité. Se déclenche avec "Docker Swarm", "swarm mode", "docker service", "docker stack", "overlay network"
+description: Orchestration with Docker Swarm covering services, stacks, overlay networks, secrets, rolling updates and high availability. Triggers on "Docker Swarm", "swarm mode", "docker service", "docker stack", "overlay network"
 user-invocable: true
 ---
 
 # Docker Swarm Guide
 
-## Critères de choix : Swarm vs Kubernetes
+## Choosing between Swarm and Kubernetes
 
-| Critère | Swarm | Kubernetes |
+| Criterion | Swarm | Kubernetes |
 |---|---|---|
-| Équipe < 5 devops | ✅ | ❌ complexité op |
-| Infra on-premise simple | ✅ | possible mais lourd |
-| Multitenancy avancé | ❌ | ✅ |
-| RBAC fin, CRDs, Operators | ❌ | ✅ |
-| Stack existante Docker Compose | ✅ migration facile | conversion nécessaire |
+| Team of fewer than 5 devops | ✅ | ❌ operational complexity |
+| Simple on-premise infrastructure | ✅ | possible but heavy |
+| Advanced multitenancy | ❌ | ✅ |
+| Fine-grained RBAC, CRDs, Operators | ❌ | ✅ |
+| Existing Docker Compose stack | ✅ easy migration | conversion required |
 
-Choisis Swarm si tu as déjà des Compose files, une petite équipe, et pas besoin de scaling horizontal à 100+ nœuds.
+Choose Swarm when you already have Compose files, a small team, and no need to scale horizontally past a hundred nodes.
 
 ---
 
-## Workflow en étapes
+## Workflow in steps
 
-### 1. Initialiser le cluster
+### 1. Initialise the cluster
 
 ```bash
-# Sur le premier manager (remplace l'IP par l'IP privée réseau inter-nœuds)
+# On the first manager (replace the IP with the private inter-node address)
 docker swarm init --advertise-addr 192.168.1.10
 
-# Récupérer les tokens
+# Retrieve the tokens
 docker swarm join-token manager   # pour ajouter un manager
 docker swarm join-token worker    # pour ajouter un worker
 
-# Rejoindre depuis un autre nœud
+# Join from another node
 docker swarm join --token SWMTKN-1-xxx 192.168.1.10:2377
 
-# Vérifier l'état du cluster
+# Check the state of the cluster
 docker node ls
 ```
 
-**Règle de quorum Raft** : toujours un nombre impair de managers.
-- 3 managers → tolère 1 panne
-- 5 managers → tolère 2 pannes
-- Ne jamais dépasser 7 managers (latence consensus)
+**Raft quorum rule**: always an odd number of managers.
+- 3 managers tolerate 1 failure
+- 5 managers tolerate 2 failures
+- Never go past 7 managers, consensus latency degrades
 
 ```bash
-# Promouvoir un worker en manager
+# Promote a worker to manager
 docker node promote <node-id>
 
-# Vérifier la santé du Raft
+# Check Raft health
 docker node inspect self --format '{{ .ManagerStatus.Reachability }}'
 ```
 
 ---
 
-### 2. Configurer les overlay networks
+### 2. Configure the overlay networks
 
 ```bash
-# Réseau chiffré pour données sensibles
+# Encrypted network for sensitive data
 docker network create \
   --driver overlay \
   --opt encrypted \
   --subnet 10.0.1.0/24 \
   backend-net
 
-# Réseau frontend non chiffré (moins de CPU)
+# Unencrypted frontend network (less CPU)
 docker network create --driver overlay frontend-net
 ```
 
-**Pattern d'isolation recommandé** :
-- `frontend-net` : load balancer ↔ app
-- `backend-net` : app ↔ base de données
-- `monitoring-net` : agents de monitoring (attachable)
+**Recommended isolation pattern**:
+- `frontend-net`: load balancer to application
+- `backend-net`: application to database
+- `monitoring-net`: monitoring agents (attachable)
 
 ```bash
-# Réseau attachable pour debug/tests ad hoc
+# Attachable network for ad hoc debugging and tests
 docker network create --driver overlay --attachable debug-net
 ```
 
 ---
 
-### 3. Déployer un service
+### 3. Deploy a service
 
 ```bash
-# Service minimal avec réplicas
+# Minimal service with replicas
 docker service create \
   --name api \
   --replicas 3 \
@@ -98,13 +98,13 @@ docker service create \
   --health-retries 3 \
   myrepo/api:1.2.0
 
-# Inspecter les tasks et leur état
+# Inspect the tasks and their state
 docker service ps api --no-trunc
 ```
 
-**Contraintes de placement** :
+**Placement constraints**:
 ```bash
-# Forcer sur nœuds labellisés SSD
+# Force onto nodes labelled SSD
 docker node update --label-add disk=ssd worker-1
 
 docker service create \
@@ -115,12 +115,10 @@ docker service create \
 
 ---
 
-### 4. Stacks avec docker-compose (méthode recommandée)
+### 4. Stacks with docker-compose (recommended method)
 
 ```yaml
 # docker-compose.prod.yml
-version: "3.9"
-
 services:
   api:
     image: myrepo/api:${API_VERSION:-latest}
@@ -138,7 +136,7 @@ services:
         delay: 15s
         failure_action: rollback
         monitor: 30s
-        order: start-first       # zero-downtime : nouveau container avant l'arrêt
+        order: start-first       # zero-downtime: new container before the old one stops
       rollback_config:
         parallelism: 1
         delay: 10s
@@ -197,28 +195,28 @@ secrets:
 ```
 
 ```bash
-# Déployer / mettre à jour la stack
+# Deploy or update the stack
 docker stack deploy -c docker-compose.prod.yml myapp
 
-# Lister les services de la stack
+# List the services of the stack
 docker stack services myapp
 
-# Retirer la stack (ne supprime pas les volumes)
+# Remove the stack (volumes are kept)
 docker stack rm myapp
 ```
 
 ---
 
-### 5. Gérer secrets et configs
+### 5. Manage secrets and configs
 
 ```bash
-# Créer un secret depuis stdin (jamais depuis un fichier en clair en prod)
+# Create a secret from stdin (never from a plaintext file in production)
 echo "S3cr3tP@ss" | docker secret create db_password -
 
-# Depuis un fichier
+# From a file
 docker secret create tls_cert ./cert.pem
 
-# Lister / inspecter (le contenu n'est jamais affiché)
+# List and inspect (the content is never printed)
 docker secret ls
 docker secret inspect db_password
 
@@ -231,14 +229,14 @@ docker service update \
   nginx
 ```
 
-Les secrets sont montés en RAM (`tmpfs`) dans `/run/secrets/<nom>`. Ils ne touchent jamais le disque du worker.
+Secrets are mounted in RAM (`tmpfs`) at `/run/secrets/<name>`. They never touch the worker disk.
 
 ---
 
-### 6. Rolling updates et rollbacks
+### 6. Rolling updates and rollbacks
 
 ```bash
-# Mise à jour de l'image (zero-downtime avec order: start-first)
+# Image update (zero-downtime with order: start-first)
 docker service update \
   --image myrepo/api:1.3.0 \
   --update-parallelism 1 \
@@ -246,22 +244,22 @@ docker service update \
   --update-failure-action rollback \
   api
 
-# Suivre la progression
+# Follow the progress
 docker service ps api --filter desired-state=running
 
-# Rollback manuel immédiat
+# Immediate manual rollback
 docker service rollback api
 
-# Forcer un redémarrage sans changer l'image (ex. secrets modifiés)
+# Force a restart without changing the image (for example after a secret change)
 docker service update --force api
 ```
 
 ---
 
-### 7. Services globaux et monitoring
+### 7. Global services and monitoring
 
 ```bash
-# Déployer un agent Prometheus Node Exporter sur CHAQUE nœud
+# Deploy a Prometheus Node Exporter agent on EVERY node
 docker service create \
   --name node-exporter \
   --mode global \
@@ -273,61 +271,61 @@ docker service create \
 
 ---
 
-## Garde-fous et anti-patterns
+## Guardrails and anti-patterns
 
-### ❌ Ne jamais faire
+### ❌ Never do this
 
 ```bash
 # DANGER : expose les secrets dans docker inspect / logs
 docker service create -e DB_PASSWORD=secret123 myapp
 
-# DANGER : manager utilisé comme worker en prod
-# (le manager gère le Raft, surcharge CPU = instabilité quorum)
+# DANGER: a manager used as a worker in production
+# (the manager runs Raft, CPU pressure means quorum instability)
 docker node update --availability drain manager-1  # ← correct pour drainer
 
-# DANGER : volume local partagé entre réplicas sans NFS/Ceph
-# Chaque réplica sur son nœud a sa propre copie locale → incohérence
+# DANGER: a local volume shared between replicas without NFS or Ceph
+# Each replica has its own local copy on its node, which means inconsistency
 ```
 
-### ⚠️ Pièges courants
+### ⚠️ Common pitfalls
 
-| Piège | Symptôme | Solution |
+| Pitfall | Symptom | Solution |
 |---|---|---|
-| `update_config.order: stop-first` (défaut) | Downtime pendant update | Passer à `start-first` |
-| Pas de `healthcheck` | Tasks "Running" mais app down | Toujours définir un healthcheck |
-| Pas de `resource limits` | Un service OOM tue le nœud | Toujours limiter CPU + RAM |
-| Quorum perdu (2 managers sur 3 HS) | Cluster en read-only | Restaurer via `docker swarm init --force-new-cluster` |
-| Image `latest` en prod | Rollback impossible | Toujours tagger les versions |
-| Drain d'un nœud sans vérifier les réplicas | Réplicas reschedulés sur nœuds surchargés | Surveiller `docker service ps` après drain |
+| `update_config.order: stop-first` (the default) | Downtime during the update | Switch to `start-first` |
+| No `healthcheck` | Tasks show Running while the app is down | Always define a healthcheck |
+| No `resource limits` | One service OOMs and kills the node | Always cap CPU and RAM |
+| Quorum lost (2 managers out of 3 down) | Cluster is read-only | Restore with `docker swarm init --force-new-cluster` |
+| `latest` image in production | Rollback is impossible | Always tag the versions |
+| Draining a node without checking the replicas | Replicas rescheduled onto overloaded nodes | Watch `docker service ps` after the drain |
 
 ---
 
-## Commandes de diagnostic
+## Diagnostic commands
 
 ```bash
-# État global du cluster
+# Overall state of the cluster
 docker node ls
 docker service ls
 
-# Tasks en échec
+# Failed tasks
 docker service ps <service> --filter desired-state=shutdown
 
 # Logs d'un service (toutes les tasks)
 docker service logs --follow --tail 100 api
 
-# Inspecter un nœud (labels, ressources)
+# Inspect a node (labels, resources)
 docker node inspect <node-id> --pretty
 
-# Stats CPU/mémoire des containers sur le nœud local
+# CPU and memory stats of the containers on the local node
 docker stats --no-stream
 ```
 
 ---
 
-## Bonnes pratiques 2026
+## Good practice for 2026
 
-- **Registre privé avec TLS** : configurer `--with-registry-auth` sur `docker stack deploy` pour que le swarm puisse puller depuis un registre privé.
-- **Rotation des secrets** : créer un nouveau secret versionné (`db_password_v2`), mettre à jour le service, puis supprimer l'ancien, le Swarm ne supporte pas la mise à jour in-place d'un secret.
-- **Drain avant maintenance** : `docker node update --availability drain <node>` migre proprement les tasks avant de toucher au nœud.
-- **Labels structurés** : utiliser des labels hiérarchiques (`zone=eu-west`, `disk=ssd`, `gpu=true`) pour des contraintes de placement précises.
-- **CI/CD** : coupler `docker stack deploy` à un pipeline GitLab/GitHub Actions avec le tag de commit comme version d'image, jamais de `latest` en production.
+- **Private registry with TLS**: set `--with-registry-auth` on `docker stack deploy` so the swarm can pull from a private registry.
+- **Secret rotation**: create a new versioned secret (`db_password_v2`), update the service, then delete the old one. Swarm does not support in-place secret updates.
+- **Drain before maintenance**: `docker node update --availability drain <node>` migrates the tasks cleanly before you touch the node.
+- **Structured labels**: use hierarchical labels (`zone=eu-west`, `disk=ssd`, `gpu=true`) for precise placement constraints.
+- **CI/CD**: wire `docker stack deploy` into a GitLab or GitHub Actions pipeline with the commit tag as the image version, never `latest` in production.

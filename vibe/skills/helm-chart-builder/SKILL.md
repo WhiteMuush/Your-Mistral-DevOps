@@ -1,31 +1,31 @@
 ---
 name: helm-chart-builder
-description: Conception de charts Helm pour Kubernetes, templates, values, dépendances et stratégies de déploiement. À utiliser quand l'utilisateur crée ou modifie des charts Helm, configure des déploiements K8s ou gère des releases. Se déclenche aussi avec "helm", "chart helm", "helm template", "values.yaml", "helm install", "helm upgrade", "kubernetes helm".
+description: Designing Helm charts for Kubernetes, templates, values, dependencies and deployment strategies. Use it when the user creates or modifies Helm charts, configures Kubernetes deployments or manages releases. Also triggers on "helm", "helm chart", "helm template", "values.yaml", "helm install", "helm upgrade", "kubernetes helm".
 user-invocable: true
 ---
 
-# Constructeur de Charts Helm
+# Helm chart builder
 
-## Workflow en étapes
+## Workflow in steps
 
-1. **Analyser**, identifier : type d'app (stateless/stateful), dépendances externes, environnements cibles, besoins ingress/secret/HPA.
-2. **Scaffolder**, `helm create mychart` puis nettoyer les exemples inutiles.
-3. **Modéliser `values.yaml`**, définir des defaults qui fonctionnent en dev sans surcharge. Tout ce qui varie par env = exposé en value.
-4. **Écrire les templates**, utiliser `_helpers.tpl` pour les labels/noms ; ajouter `checksum/config` pour forcer le rollout sur changement de ConfigMap.
-5. **Valider localement**, `helm lint`, `helm template`, `helm diff` (plugin) avant tout push.
-6. **Déployer par env**, `helm upgrade --install` avec `-f values-prod.yaml` et `--set image.tag=$TAG`.
-7. **Opérations post-deploy**, vérifier `helm status`, inspecter les logs, prévoir `helm rollback` si nécessaire.
+1. **Analyse**, identify: type of application (stateless or stateful), external dependencies, target environments, ingress, secret and HPA needs.
+2. **Scaffold**, `helm create mychart` then clean out the unused examples.
+3. **Model `values.yaml`**, define defaults that work in dev with no override. Anything varying per environment becomes a value.
+4. **Write the templates**, use `_helpers.tpl` for labels and names; add `checksum/config` to force a rollout when a ConfigMap changes.
+5. **Validate locally**, `helm lint`, `helm template`, `helm diff` (plugin) before any push.
+6. **Deploy per environment**, `helm upgrade --install` with `-f values-prod.yaml` and `--set image.tag=$TAG`.
+7. **Post-deploy operations**, check `helm status`, inspect the logs, keep `helm rollback` ready.
 
-## Structure type
+## Typical structure
 
 ```
 mychart/
-├── Chart.yaml              # Métadonnées + dépendances
+├── Chart.yaml              # Metadata and dependencies
 ├── values.yaml             # Defaults (dev fonctionnel sans override)
 ├── values-staging.yaml
 ├── values-prod.yaml
 ├── templates/
-│   ├── _helpers.tpl        # include réutilisables (labels, fullname…)
+│   ├── _helpers.tpl        # reusable includes (labels, fullname and so on)
 │   ├── deployment.yaml
 │   ├── service.yaml
 │   ├── ingress.yaml
@@ -33,8 +33,8 @@ mychart/
 │   ├── configmap.yaml
 │   ├── secret.yaml         # ou ExternalSecret si ESO
 │   ├── serviceaccount.yaml
-│   └── NOTES.txt           # affiché après install
-└── charts/                 # dépendances téléchargées
+│   └── NOTES.txt           # printed after install
+└── charts/                 # downloaded dependencies
 ```
 
 ## Chart.yaml
@@ -44,18 +44,25 @@ apiVersion: v2
 name: payment-api
 description: API de gestion des paiements
 type: application          # ou "library" pour un chart utilitaire
-version: 1.3.0             # SemVer du chart (indépendant de l'app)
+version: 1.3.0             # SemVer of the chart, independent of the app
 appVersion: "3.2.0"        # version de l'image applicative
 dependencies:
-  - name: postgresql
-    version: "15.x.x"
-    repository: "oci://registry-1.docker.io/bitnamicharts"
-    condition: postgresql.enabled   # désactivable via values
+  - name: cloudnative-pg
+    version: "0.x.x"               # check with: helm search repo cnpg
+    repository: "https://cloudnative-pg.github.io/charts"
+    condition: cloudnative-pg.enabled   # can be disabled through values
 ```
 
-> **Critère** : incrémenter `version` à chaque changement de template ; incrémenter `appVersion` à chaque release applicative.
+> **Bitnami pitfall**: most tutorials online declare their dependencies on
+> `oci://registry-1.docker.io/bitnamicharts`. Broadcom removed that public catalogue on
+> 29 September 2025: versioned charts moved behind a subscription, and only 44
+> development-only images tagged `latest` remain. Those examples fail at
+> `helm dependency update`. Alternatives: the official chart of the upstream project when one exists,
+> otherwise the maintained forks (Chainguard, RapidFort).
 
-## `_helpers.tpl`, base minimale
+> **Criterion**: bump `version` on every template change; bump `appVersion` on every application release.
+
+## `_helpers.tpl`, minimal base
 
 ```yaml
 {{- define "mychart.fullname" -}}
@@ -76,7 +83,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 ```
 
-## Deployment, template de référence
+## Deployment, reference template
 
 ```yaml
 apiVersion: apps/v1
@@ -137,10 +144,10 @@ spec:
             periodSeconds: 10
 ```
 
-## `values.yaml`, defaults complets
+## `values.yaml`, complete defaults
 
 ```yaml
-replicaCount: 1   # override à 2+ en prod
+replicaCount: 1   # override to 2 or more in production
 
 image:
   repository: myregistry.azurecr.io/payment-api
@@ -153,7 +160,7 @@ service:
   targetPort: 8080
 
 ingress:
-  enabled: false   # activé par values-prod.yaml
+  enabled: false   # switched on by values-prod.yaml
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -186,11 +193,11 @@ probes:
 secret:
   enabled: false
 
-postgresql:
-  enabled: false   # activer localement si nécessaire
+cloudnative-pg:
+  enabled: false   # enable locally when needed
 ```
 
-## Commandes essentielles
+## Essential commands
 
 ```bash
 # Scaffolding
@@ -200,25 +207,25 @@ helm create mychart
 helm lint mychart
 helm template myrelease mychart -f values-prod.yaml | kubectl apply --dry-run=client -f -
 
-# Déploiement
+# Deployment
 helm upgrade --install myrelease ./mychart \
   -f values-prod.yaml \
   --set image.tag=v3.2.0 \
   --namespace prod \
   --create-namespace \
-  --atomic \           # rollback auto si échec
+  --atomic \           # automatic rollback on failure
   --timeout 5m
 
-# Différences avant upgrade (plugin helm-diff requis)
+# Diff before upgrading (requires the helm-diff plugin)
 helm diff upgrade myrelease ./mychart -f values-prod.yaml --set image.tag=v3.2.0
 
 # Rollback
-helm rollback myrelease 1   # révision 1
+helm rollback myrelease 1   # revision 1
 
-# Dépendances
+# Dependencies
 helm dependency update mychart
 
-# Inspecter une release
+# Inspect a release
 helm status myrelease -n prod
 helm get values myrelease -n prod
 helm history myrelease -n prod
@@ -228,33 +235,33 @@ helm push mychart-1.3.0.tgz oci://myregistry.azurecr.io/charts
 helm install myrelease oci://myregistry.azurecr.io/charts/mychart --version 1.3.0
 ```
 
-## Critères de décision
+## Decision criteria
 
-| Besoin | Solution recommandée |
+| Need | Recommended solution |
 |---|---|
-| Secret sensible en prod | ExternalSecret (ESO) ou Vault Agent Injector, pas `kind: Secret` en clair |
-| Multi-environnements | `values-<env>.yaml` + `-f` à l'install, pas de Helm templating conditionnel excessif |
-| Dépendance DB locale en dev | `postgresql.enabled: true` dans `values-dev.yaml` |
-| App stateful (DB, Kafka…) | `StatefulSet` + PVC dans le template, pas `Deployment` |
-| Chart réutilisable entre équipes | Chart de type `library` dans un registry OCI partagé |
-| Rollout zero-downtime | `strategy.type: RollingUpdate` + `minReadySeconds` + probes correctes |
+| Sensitive secret in production | ExternalSecret (ESO) or Vault Agent Injector, never a plaintext `kind: Secret` |
+| Multiple environments | `values-<env>.yaml` plus `-f` at install time, rather than heavy conditional templating |
+| Local database dependency in dev | `cloudnative-pg.enabled: true` in `values-dev.yaml` |
+| Stateful application (database, Kafka) | `StatefulSet` plus PVC in the template, not `Deployment` |
+| Chart reused across teams | A `library` chart in a shared OCI registry |
+| Zero-downtime rollout | `strategy.type: RollingUpdate` plus `minReadySeconds` and correct probes |
 
-## Anti-patterns / pièges
+## Anti-patterns and pitfalls
 
-- **`image.tag: latest`**, non reproductible. Toujours passer `--set image.tag=$CI_SHA`.
-- **Secrets en clair dans values.yaml**, ne jamais committer des credentials ; utiliser ESO, Vault ou `--set secret.password=$VAR` depuis CI.
-- **`helm install` sans `--atomic`**, laisse une release en état `FAILED` ; préférer `--atomic` en CI/CD.
-- **Omettre `checksum/config`**, le pod ne redémarre pas quand la ConfigMap change sans cette annotation.
-- **Oublier `helm dependency update`**, dossier `charts/` vide → install échoue silencieusement.
-- **Versioning mal séparé**, ne pas synchroniser `version` (chart) et `appVersion` (image) : les deux bougent indépendamment.
-- **Templates trop conditionnels**, `{{- if .Values.featureX }}…{{- end }}` partout rend le chart illisible ; préférer des charts séparés ou des overlays Kustomize pour des variantes majeures.
-- **Pas de `NOTES.txt`**, priver les utilisateurs du mode d'emploi post-install.
+- **`image.tag: latest`**, not reproducible. Always pass `--set image.tag=$CI_SHA`.
+- **Plaintext secrets in values.yaml**, never commit credentials; use ESO, Vault, or `--set secret.password=$VAR` from CI.
+- **`helm install` without `--atomic`**, leaves the release in a `FAILED` state; prefer `--atomic` in CI/CD.
+- **Omitting `checksum/config`**, without that annotation the pod does not restart when the ConfigMap changes.
+- **Forgetting `helm dependency update`**, an empty `charts/` directory makes the install fail silently.
+- **Badly separated versioning**, do not keep `version` (chart) and `appVersion` (image) in sync: they move independently.
+- **Over-conditional templates**, `{{- if .Values.featureX }}…{{- end }}` everywhere makes the chart unreadable; prefer separate charts or Kustomize overlays for major variants.
+- **No `NOTES.txt`**, which deprives users of the post-install instructions.
 
-## Bonnes pratiques 2026
+## Good practice for 2026
 
-- Publier dans un **registry OCI** (ACR, ECR, GHCR) plutôt qu'un chart repo HTTP classique.
-- Utiliser **`helm diff`** en CI pour générer un résumé lisible dans la PR avant merge.
-- Coupler avec **`ct` (chart-testing)** pour le lint et les tests d'intégration automatisés.
-- Activer **`NetworkPolicy`** par défaut dans le chart pour limiter le blast radius.
-- Générer la **documentation** des values avec `helm-docs` (annotations `# -- description`).
-- Préférer **`--atomic --timeout`** en CD pour garantir un rollback automatique en cas d'échec de rollout.
+- Publish to an **OCI registry** (ACR, ECR, GHCR) rather than a classic HTTP chart repository.
+- Use **`helm diff`** in CI to produce a readable summary in the pull request before merge.
+- Pair it with **`ct` (chart-testing)** for linting and automated integration tests.
+- Enable a **`NetworkPolicy`** by default in the chart to limit the blast radius.
+- Generate the **documentation** of the values with `helm-docs` (`# -- description` annotations).
+- Prefer **`--atomic --timeout`** in CD to guarantee an automatic rollback when a rollout fails.
