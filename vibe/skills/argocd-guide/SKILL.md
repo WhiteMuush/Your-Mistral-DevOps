@@ -1,15 +1,15 @@
 ---
 name: argocd-guide
-description: GitOps avec ArgoCD incluant applications, sync, rollbacks, multi-cluster et App of Apps pattern. Se déclenche avec "ArgoCD", "Argo CD", "GitOps", "sync ArgoCD", "application ArgoCD", "App of Apps"
+description: GitOps with ArgoCD covering applications, sync, rollbacks, multi-cluster and the App of Apps pattern. Triggers on "ArgoCD", "Argo CD", "GitOps", "ArgoCD sync", "ArgoCD application", "App of Apps"
 user-invocable: true
 ---
 
 # ArgoCD Guide
 
-## 1. Installation et configuration initiale
+## 1. Installation and initial configuration
 
 ```bash
-# Helm (recommandé en prod)
+# Helm (recommended in production)
 helm repo add argo https://argoproj.github.io/argo-helm
 helm install argocd argo/argo-cd \
   --namespace argocd --create-namespace \
@@ -17,14 +17,14 @@ helm install argocd argo/argo-cd \
   --set configs.params."server\.insecure"=false \
   -f argocd-values.yaml
 
-# Récupérer le mot de passe admin initial
+# Retrieve the initial admin password
 argocd admin initial-password -n argocd
 
 # Login CLI
 argocd login argocd.example.com --username admin --grpc-web
 ```
 
-**SSO (Azure AD OIDC), config minimale dans `argocd-cm` :**
+**SSO (Azure AD OIDC), minimal configuration in `argocd-cm`:**
 ```yaml
 data:
   oidc.config: |
@@ -35,7 +35,7 @@ data:
     requestedScopes: [openid, profile, email]
 ```
 
-**RBAC, `argocd-rbac-cm` :**
+**RBAC, `argocd-rbac-cm`:**
 ```yaml
 data:
   policy.csv: |
@@ -47,7 +47,7 @@ data:
 
 ---
 
-## 2. Connecter un repository Git
+## 2. Connect a Git repository
 
 ```bash
 # SSH key
@@ -59,7 +59,7 @@ argocd repo add https://github.com/org/gitops-repo.git \
   --username argocd --password <token>
 ```
 
-**Structure de repo recommandée (monorepo) :**
+**Recommended repository structure (monorepo):**
 ```
 gitops-repo/
 ├── apps/                   # App of Apps (root)
@@ -77,7 +77,7 @@ gitops-repo/
 
 ---
 
-## 3. Déclarer une Application (déclaratif YAML)
+## 3. Declare an Application (declarative YAML)
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -112,19 +112,19 @@ spec:
         maxDuration: 3m
 ```
 
-**Critères sync policy :**
-| Env | auto-sync | prune | selfHeal | Sync window |
+**Sync policy criteria:**
+| Environment | auto-sync | prune | selfHeal | Sync window |
 |-----|-----------|-------|----------|-------------|
-| dev | oui | oui | oui | non |
-| staging | oui | oui | oui | optionnel |
-| prod | non (ou oui) | **non** | oui | **obligatoire** |
+| dev | yes | yes | yes | no |
+| staging | yes | yes | yes | optional |
+| production | no (or yes) | **no** | yes | **mandatory** |
 
 ---
 
-## 4. App of Apps, bootstrapping cluster
+## 4. App of Apps, bootstrapping a cluster
 
 ```yaml
-# root-app.yaml, appliqué une seule fois manuellement
+# root-app.yaml, applied manually once
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -145,11 +145,11 @@ spec:
       selfHeal: true
 ```
 
-Le dossier `apps/prod/` contient des `Application` YAML pour chaque workload. ArgoCD les crée en cascade. Un seul `kubectl apply -f root-app.yaml` bootstrap le cluster entier.
+The `apps/prod/` directory holds one `Application` YAML per workload. ArgoCD creates them in cascade. A single `kubectl apply -f root-app.yaml` bootstraps the entire cluster.
 
 ---
 
-## 5. ApplicationSet, multi-cluster / multi-env
+## 5. ApplicationSet, multi-cluster and multi-environment
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -177,7 +177,7 @@ spec:
         namespace: my-app
 ```
 
-**Enregistrer un cluster distant :**
+**Register a remote cluster:**
 ```bash
 # Le context kubeconfig doit pointer sur le cluster cible
 argocd cluster add prod-eu-west \
@@ -187,12 +187,12 @@ argocd cluster add prod-eu-west \
 
 ---
 
-## 6. Sync waves et hooks
+## 6. Sync waves and hooks
 
-Contrôler l'ordre de déploiement (ex: CRD avant opérateur, migration DB avant app) :
+Control the deployment order, for instance a CRD before its operator, or a database migration before the application:
 
 ```yaml
-# CRD déployée en wave -1 (avant tout)
+# CRD deployed in wave -1, before everything else
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
@@ -218,28 +218,28 @@ metadata:
 # Lister l'historique
 argocd app history my-app-prod
 
-# Rollback vers une révision précédente (ID depuis history)
+# Roll back to an earlier revision (ID taken from history)
 argocd app rollback my-app-prod <revision-id>
 
-# Forcer un sync sur un commit Git précis
+# Force a sync onto a specific Git commit
 argocd app set my-app-prod --revision abc1234
 argocd app sync my-app-prod
 ```
 
-Après rollback manuel, désactiver l'auto-sync sinon ArgoCD re-synce immédiatement vers HEAD :
+After a manual rollback, disable auto-sync, otherwise ArgoCD immediately syncs back to HEAD:
 ```bash
 argocd app set my-app-prod --sync-policy none
 ```
 
 ---
 
-## 8. Secrets, ne jamais stocker en clair dans Git
+## 8. Secrets, never stored in plaintext in Git
 
-| Outil | Quand l'utiliser |
+| Tool | When to use it |
 |-------|-----------------|
-| **External Secrets Operator** | Secrets dans Vault / AWS SSM / Azure Key Vault, recommandé 2026 |
-| **SOPS + age/KMS** | Chiffrement in-repo, rotation manuelle, simple à auditer |
-| **Sealed Secrets** | Cluster-specific, sans dépendance externe |
+| **External Secrets Operator** | Secrets living in Vault, AWS SSM or Azure Key Vault, the 2026 recommendation |
+| **SOPS with age or KMS** | In-repo encryption, manual rotation, simple to audit |
+| **Sealed Secrets** | Cluster-specific, with no external dependency |
 
 ```yaml
 # ExternalSecret (ESO)
@@ -263,16 +263,16 @@ spec:
 
 ---
 
-## 9. Monitoring et notifications
+## 9. Monitoring and notifications
 
 ```bash
-# Métriques Prometheus exposées par argocd-metrics:8082
+# Prometheus metrics exposed by argocd-metrics:8082
 # Alertes utiles :
 # argocd_app_sync_total{phase="Error"} > 0
 # argocd_app_health_status{health_status!="Healthy"} > 0
 ```
 
-**Notification Slack (argocd-notifications) :**
+**Slack notification (argocd-notifications):**
 ```yaml
 # argocd-notifications-cm
 data:
@@ -286,15 +286,15 @@ data:
 
 ---
 
-## Anti-patterns et pièges
+## Anti-patterns and pitfalls
 
-- **prune: true en prod sans sync window**, supprime des ressources inattendues dès qu'elles disparaissent du repo (oubli d'un fichier = outage).
-- **Créer des Applications via l'UI ou la CLI seulement**, non auditable, disparaît si ArgoCD est recréé. Toujours committer le YAML.
-- **Stocker des secrets en clair dans le repo GitOps**, violation immédiate si le repo est compromis. Utiliser ESO ou SOPS.
-- **Ignorer les sync waves pour les CRDs**, ArgoCD tente de créer des resources custom avant que la CRD existe → erreur de sync.
-- **Un seul AppProject `default` pour tous les environnements**, perte de l'isolation RBAC. Créer un AppProject par équipe/env.
-- **targetRevision: HEAD en prod**, un merge accidentel se déploie aussitôt. Préférer un tag ou un sha fixe, ou utiliser une sync window.
-- **health checks manquants pour les CRDs**, ArgoCD rapporte `Healthy` même si l'opérateur est en erreur. Définir un custom health check Lua.
+- **`prune: true` in production without a sync window**, it deletes unexpected resources as soon as they disappear from the repository, so one forgotten file becomes an outage.
+- **Creating Applications only through the UI or the CLI**, which is not auditable and vanishes if ArgoCD is recreated. Always commit the YAML.
+- **Storing plaintext secrets in the GitOps repository**, an immediate breach if the repository is compromised. Use ESO or SOPS.
+- **Ignoring sync waves for CRDs**, ArgoCD tries to create custom resources before the CRD exists, which fails the sync.
+- **A single `default` AppProject for every environment**, which loses RBAC isolation. Create one AppProject per team or environment.
+- **`targetRevision: HEAD` in production**, an accidental merge deploys at once. Prefer a tag or a fixed sha, or use a sync window.
+- **Missing health checks for CRDs**, ArgoCD reports `Healthy` even when the operator is failing. Define a custom Lua health check.
 
 ```lua
 -- Exemple health check Lua pour un CRD custom
@@ -316,12 +316,12 @@ return hs
 
 ---
 
-## Bonnes pratiques 2026
+## Good practice for 2026
 
-- Utiliser **ArgoCD 3.x** (3.3 est la stable courante). Le passage 2.x → 3.0, sorti en mai 2025, apporte
-  des changements de comportement : lire le guide de migration officiel avant d'upgrader un cluster existant.
-- Activer le **server-side apply** (`ServerSideApply=true` dans syncOptions) pour éviter les conflits de field managers.
-- Préférer **Kustomize** pour les overlays d'environnement et **Helm** pour les charts de librairies tierces.
-- Brancher **Argo Rollouts** pour les déploiements progressifs (canary, blue-green) plutôt que les rolling updates natifs K8s.
-- Versionner les `AppProject` et les `ApplicationSet` dans Git comme toute autre ressource ArgoCD.
-- Activer `impersonation` pour que chaque Application s'exécute avec un ServiceAccount dédié, limitant le blast radius.
+- Use **ArgoCD 3.x** (3.3 is the current stable). The 2.x to 3.0 step, released in May 2025, brings
+  behavioural changes: read the official migration guide before upgrading an existing cluster.
+- Enable **server-side apply** (`ServerSideApply=true` in syncOptions) to avoid field manager conflicts.
+- Prefer **Kustomize** for environment overlays and **Helm** for third-party library charts.
+- Wire in **Argo Rollouts** for progressive delivery (canary, blue-green) rather than the native Kubernetes rolling updates.
+- Version the `AppProject` and `ApplicationSet` objects in Git like any other ArgoCD resource.
+- Enable `impersonation` so each Application runs with a dedicated ServiceAccount, limiting the blast radius.
