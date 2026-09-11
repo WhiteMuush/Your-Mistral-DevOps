@@ -1,32 +1,32 @@
-# Contribuer
+# Contributing
 
-Les contributions sont bienvenues : nouveau skill, amélioration d'un guide existant, correction du system prompt.
+Contributions are welcome: a new skill, an improvement to an existing guide, a fix to the system prompt.
 
-## Avant de proposer
+## Before proposing
 
-1. Lisez le [wiki](https://github.com/WhiteMuush/Your-Mistral-DevOps-Teacher/wiki) : il explique pourquoi la config est structurée en trois couches. Une règle au mauvais endroit (AGENTS.md au lieu du system prompt, ou l'inverse) sera refusée avec renvoi vers la page Architecture
-2. Chaque règle doit venir d'un **problème observé**, pas d'une intuition. Décrivez le cas d'échec dans la PR
+1. Read the [wiki](https://github.com/WhiteMuush/Your-Mistral-DevOps/wiki): it explains why the configuration is built in three layers. A rule placed in the wrong layer (`AGENTS.md` instead of the system prompt, or the other way round) will be refused with a pointer to the Architecture page
+2. Every rule must come from an **observed problem**, not from an intuition. Describe the failure case in the pull request
 
-## Tester vos changements
+## Testing your changes
 
-Installez dans un dossier jetable, sans toucher votre vraie config :
+Install into a throwaway directory, without touching your real configuration:
 
 ```bash
 VIBE_HOME=/tmp/vibe-test bash install.sh
 ```
 
-Pour une modification du system prompt ou d'un skill, joignez à la PR un **test différentiel** : une question dont la réponse diffère selon que la règle est active ou non, et les deux réponses observées. Voir la page wiki "Les skills" pour la méthode.
+For a change to the system prompt or to a skill, attach a **differential test** to the pull request: a question whose answer differs depending on whether the rule is active, along with both observed answers. See the wiki page "Les skills" for the method.
 
 ## Conventions
 
-- **Skills** : un dossier par skill, `SKILL.md` à l'intérieur, frontmatter avec `name`, `description` et `user-invocable: true`. La description doit lister les mots-clés déclencheurs
-- **Français** : tout le contenu utilisateur est en français
-- **Pas de tiret cadratin** dans les textes : virgule, deux-points ou parenthèses
-- **Commits** : format conventionnel (`feat:`, `fix:`, `docs:`), sujet à 50 caractères max, pas de ligne `Co-Authored-By`
-- **Branches** : lettres, chiffres, tirets et slash uniquement (`feat/nouveau-skill-k8s`)
+- **Skills**: one directory per skill, `SKILL.md` inside, frontmatter carrying `name`, `description` and `user-invocable: true`. The description must list the trigger keywords
+- **English**: all user-facing content is written in English
+- **No em dash** anywhere in the text: use a comma, a colon or parentheses
+- **Commits**: conventional format (`feat:`, `fix:`, `docs:`), subject of 50 characters at most, no `Co-Authored-By` line
+- **Branches**: letters, digits, hyphens and slashes only (`feat/new-k8s-skill`)
 
-## Ce qui ne sera pas accepté
+## What will not be accepted
 
-- Des règles qui affaiblissent les protections de Vibe (auto-approve, push automatique, contournement des confirmations)
-- Des skills sans méthode concrète (les collections de généralités "utilisez les bonnes pratiques" n'aident personne)
-- Du contenu en anglais dans les prompts utilisateur
+- Rules that weaken the protections of Vibe (auto-approve, automatic push, bypassing confirmations)
+- Skills without a concrete method (collections of generalities such as "use best practices" help nobody)
+- Content written in a language other than English in the user-facing prompts

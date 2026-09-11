@@ -1,52 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Installe la config Vibe (AGENTS.md + skills + system prompt) dans le dossier Vibe de l'utilisateur.
-# Respecte $VIBE_HOME si defini, sinon ~/.vibe.
+# Installs the Vibe configuration (AGENTS.md + skills + system prompt) into the user's Vibe directory.
+# Honours $VIBE_HOME when defined, otherwise ~/.vibe.
 
 VIBE_HOME="${VIBE_HOME:-$HOME/.vibe}"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/vibe" && pwd)"
 
-echo "Cible : $VIBE_HOME"
+echo "Target: $VIBE_HOME"
 mkdir -p "$VIBE_HOME/skills" "$VIBE_HOME/prompts"
 
-# Sauvegarde l'AGENTS.md existant avant de l'ecraser
+# Back up any existing AGENTS.md before overwriting it
 if [ -f "$VIBE_HOME/AGENTS.md" ]; then
   BACKUP="$VIBE_HOME/AGENTS.md.bak.$(date +%Y%m%d%H%M%S)"
   cp "$VIBE_HOME/AGENTS.md" "$BACKUP"
-  echo "AGENTS.md existant sauvegarde : $BACKUP"
+  echo "Existing AGENTS.md backed up: $BACKUP"
 fi
 
 cp "$SRC/AGENTS.md" "$VIBE_HOME/AGENTS.md"
-echo "AGENTS.md installe."
+echo "AGENTS.md installed."
 
-# Copie chaque skill (fusion, n'efface pas les autres skills existants)
+# Copy each skill (merge, existing skills are left in place)
 cp -r "$SRC/skills/." "$VIBE_HOME/skills/"
-echo "Skills installes :"
+echo "Skills installed:"
 find "$SRC/skills" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | sort | sed 's/^/  - /'
 
-# System prompt custom (base : prompt integre de Vibe 2.19.1 + regles style/skills/git)
+# Custom system prompt (base: built-in Vibe 2.19.1 prompt + style, skills and git rules)
 cp "$SRC/prompts/cli-caveman.md" "$VIBE_HOME/prompts/cli-caveman.md"
-echo "System prompt cli-caveman installe."
+echo "System prompt cli-caveman installed."
 
-# Active le system prompt dans config.toml si present
+# Enable the system prompt in config.toml when present
 CONFIG="$VIBE_HOME/config.toml"
 if [ -f "$CONFIG" ]; then
   if grep -q '^system_prompt_id' "$CONFIG"; then
     if ! grep -q '^system_prompt_id = "cli-caveman"' "$CONFIG"; then
       sed -i.bak 's/^system_prompt_id = .*/system_prompt_id = "cli-caveman"/' "$CONFIG"
-      echo "config.toml : system_prompt_id passe a cli-caveman (backup : config.toml.bak)."
+      echo "config.toml: system_prompt_id switched to cli-caveman (backup: config.toml.bak)."
     else
-      echo "config.toml : system_prompt_id deja sur cli-caveman."
+      echo "config.toml: system_prompt_id already set to cli-caveman."
     fi
   else
     printf '\nsystem_prompt_id = "cli-caveman"\n' >> "$CONFIG"
-    echo "config.toml : system_prompt_id = cli-caveman ajoute."
+    echo "config.toml: system_prompt_id = cli-caveman added."
   fi
 else
-  echo "ATTENTION : $CONFIG introuvable. Ajoute manuellement : system_prompt_id = \"cli-caveman\""
+  echo "WARNING: $CONFIG not found. Add manually: system_prompt_id = \"cli-caveman\""
 fi
 
 echo
-echo "Termine. Relance Vibe pour recharger la config."
-echo "Skills invocables avec /nom (ex : /init, /terraform-guide)."
+echo "Done. Restart Vibe to reload the configuration."
+echo "Skills are invoked with /name (for example /init, /terraform-guide)."

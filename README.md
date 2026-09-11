@@ -1,31 +1,37 @@
-# Your 𝐅𝐑𝐄𝐍𝐂𝐇 Mistral DevOps Teacher 🇫🇷🐈
+<img src="https://cdn.simpleicons.org/mistralai/FF6200" width="80" align="left" alt="" />
 
-Config prête à l'emploi pour [Mistral Vibe](https://docs.mistral.ai/vibe/code/cli/install-setup) : un `AGENTS.md` (règles + style compressé), 11 skills DevOps / dev, et un system prompt custom qui force la lecture des skills, le git systématique et les réponses courtes. Installable en une commande.
+### Your Mistral DevOps
 
-> 📖 **[Le wiki](https://github.com/WhiteMuush/Your-Mistral-DevOps-Teacher/wiki)** explique comment tout ça est construit et pourquoi : architecture des 3 couches, le system prompt en détail, les problèmes réels rencontrés et leurs diagnostics.
+**A ready-to-use, shareable Mistral Vibe configuration for Dev and Ops work.**
 
-## Installation
+<br clear="all" />
+
+An `AGENTS.md` holding the global rules, 11 DevOps and development skills, and a custom system prompt that forces skills to be read, git to be used systematically and answers to stay short. One command to install it.
+
+> The **[wiki](https://github.com/WhiteMuush/Your-Mistral-DevOps/wiki)** explains how this is built and why: the three-layer architecture, the system prompt in detail, and the real problems met along the way with their diagnosis.
+
+## Quick install
 
 ```bash
-git clone https://github.com/WhiteMuush/Your-Mistral-DevOps-Teacher.git
-cd Your-Mistral-DevOps-Teacher
+git clone https://github.com/WhiteMuush/Your-Mistral-DevOps.git
+cd Your-Mistral-DevOps
 bash install.sh
 ```
 
-Puis relance Vibe. C'est tout.
+Then restart Vibe. That is all.
 
-L'installeur copie vers `~/.vibe/` (ou `$VIBE_HOME` si défini). Un `AGENTS.md` déjà présent est sauvegardé (`.bak.<date>`) avant écrasement. Les skills sont fusionnés, pas les autres skills existants ne sont supprimés.
+The installer copies into `~/.vibe/`, or into `$VIBE_HOME` when that variable is set. An existing `AGENTS.md` is backed up as `.bak.<date>` before being overwritten. Skills are merged, so the ones already in place are kept.
 
-## Contenu
+## Contents
 
 ```
 vibe/
-├── AGENTS.md          # règles globales + style compressé toujours actif + routage skills
+├── AGENTS.md          # global rules, always-on compressed style, skill routing table
 ├── prompts/
-│   └── cli-caveman.md # system prompt custom (voir section dédiée)
+│   └── cli-caveman.md # custom system prompt (see the section below)
 └── skills/
-    ├── init/                     # /init : scanne un repo, écrit un AGENTS.md projet
-    ├── dev-conventions/          # code, commits, branches conformes au projet
+    ├── init/                     # /init: scans a repository, writes a project AGENTS.md
+    ├── dev-conventions/          # code, commits and branches matching the project
     ├── terraform-guide/
     ├── helm-chart-builder/
     ├── ansible-playbook-builder/
@@ -39,33 +45,33 @@ vibe/
 
 ## Usage
 
-Chaque skill est invocable en slash-command : `/init`, `/terraform-guide`, `/dev-conventions`, etc.
+Every skill is callable as a slash command: `/init`, `/terraform-guide`, `/dev-conventions`, and so on.
 
-Sur un nouveau repo, lance `/init` une fois : il détecte la stack, lit les skills utiles, et écrit un `AGENTS.md` à la racine du projet que Vibe relira à chaque session.
+On a new repository, run `/init` once: it detects the stack, reads the relevant skills, and writes an `AGENTS.md` at the project root that Vibe will read again at every session.
 
-## Le system prompt custom
+## The custom system prompt
 
-`AGENTS.md` seul ne suffit pas : Vibe l'encadre d'un avertissement "peut être pertinent ou non" et le modèle dérive sur les sessions longues. Le system prompt est un canal plus fort.
+`AGENTS.md` alone is not enough: Vibe wraps it in a "may or may not be relevant" warning, and the model drifts over long sessions. The system prompt is a stronger channel.
 
-`vibe/prompts/cli-caveman.md` = le prompt intégré de Vibe (copié tel quel, version 2.19.1) + 4 sections ajoutées à la fin :
+`vibe/prompts/cli-caveman.md` is the built-in Vibe prompt, copied as is from version 2.19.1, plus four sections appended at the end:
 
-1. **Style compressé** : réponses courtes, jamais recopier un fichier lu, règles de lisibilité (une idée par ligne, gras, listes)
-2. **Skills obligatoires** : lire le `SKILL.md` du domaine avant d'agir, même si le prompt donne déjà la structure. Le skill fait autorité sur les connaissances d'entraînement
-3. **Git systématique** : `git init` + commits atomiques sur tout projet neuf, sans le demander. Jamais de push non demandé
-4. **Vraies justifications** : chaque choix technique non trivial = "X plutôt que Y : raison concrète". Les justifications creuses ("robuste", "scalable") sont interdites
+1. **Compressed style**: short answers, never copying back a file that was just read, readability rules (one idea per line, bold, lists)
+2. **Mandatory skills**: read the `SKILL.md` of the domain before acting, even when the prompt already gives the structure. The skill overrides training knowledge
+3. **Systematic git**: `git init` plus atomic commits on any new project, without being asked. Never an unrequested push
+4. **Real justifications**: every non-trivial technical choice states "X rather than Y, for this concrete reason". Empty justifications such as "robust" or "scalable" are banned
 
-L'installeur le copie dans `~/.vibe/prompts/` et bascule `system_prompt_id = "cli-caveman"` dans `config.toml` (backup automatique).
+The installer copies it into `~/.vibe/prompts/` and switches `system_prompt_id` to `"cli-caveman"` in `config.toml`, with an automatic backup.
 
-**Après une grosse mise à jour de Vibe** : le prompt intégré évolue mais cette copie reste figée. Re-copier le nouveau `cli.md` depuis le paquet installé et re-coller les 4 sections.
+**After a major Vibe update**: the built-in prompt evolves while this copy stays frozen. Copy the new `cli.md` from the installed package and paste the four sections back at the end.
 
-## À savoir sur Vibe
+## What to know about Vibe
 
-Vibe peux ne pas déclencher les skills automatiquement sur mots-clés : ils se chargent via `/nom`, ou parce que la table de routage dans `AGENTS.md` et le system prompt disent au modèle de lire le bon `SKILL.md` avant d'agir. Testé sur un prompt d'infra ouvert : les 3 skills pertinents sont lus avant d'écrire.
+Vibe may not trigger skills automatically on keywords. They load through `/name`, or because the routing table in `AGENTS.md` and the system prompt tell the model to read the right `SKILL.md` before acting. Tested on an open-ended infrastructure prompt: the three relevant skills were read before anything was written.
 
-## Mise à jour
+## Updating
 
-Re-run `bash install.sh` après un `git pull`. L'ancien `AGENTS.md` est sauvegardé à chaque fois.
+Re-run `bash install.sh` after a `git pull`. The previous `AGENTS.md` is backed up every time.
 
-## Licence
+## License
 
-Apache-2.0 (voir `LICENSE`). Le fichier `vibe/prompts/cli-caveman.md` contient le prompt intégré de Mistral Vibe (Apache-2.0, Copyright Mistral AI), voir `NOTICE`.
+Apache-2.0, see `LICENSE`. The file `vibe/prompts/cli-caveman.md` contains the built-in prompt of Mistral Vibe (Apache-2.0, Copyright Mistral AI), see `NOTICE`.
