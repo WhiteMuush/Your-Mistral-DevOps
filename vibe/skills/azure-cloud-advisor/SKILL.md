@@ -1,56 +1,56 @@
 ---
 name: azure-cloud-advisor
-description: Conseils pour l'architecture et le déploiement sur Azure, App Service, Azure Functions, Container Apps, SQL Azure et bonnes pratiques cloud. À utiliser quand l'utilisateur déploie sur Azure, choisit des services cloud ou optimise ses coûts Azure. Se déclenche aussi avec "Azure", "App Service", "Azure Functions", "Container Apps", "Azure SQL", "déploiement Azure", "coûts Azure".
+description: Advice on architecture and deployment on Azure, App Service, Azure Functions, Container Apps, Azure SQL and cloud good practice. Use it when the user deploys to Azure, picks a cloud service or optimises Azure costs. Also triggers on "Azure", "App Service", "Azure Functions", "Container Apps", "Azure SQL", "Azure deployment", "Azure costs".
 user-invocable: true
 ---
 
-# Conseiller Azure Cloud
+# Azure cloud advisor
 
 ## Workflow
 
-1. **Qualifier le besoin** : type de workload (web, event-driven, batch, temps réel), contraintes (SLA, latence, data residency), budget mensuel cible.
-2. **Choisir le service de compute** : utiliser la matrice ci-dessous ; si ambiguïté, demander si l'équipe maîtrise déjà K8s.
-3. **Architecturer** : topologie réseau (VNet, Private Endpoints), sécurité (Managed Identity, Key Vault), résilience (zones, geo-replication).
-4. **Provisionner** : commandes `az` copiables ou Bicep/Terraform.
-5. **Optimiser** : coûts (Reserved, Spot, scale-to-zero), performance (profiling via App Insights), scalabilité.
+1. **Qualify the need**: type of workload (web, event-driven, batch, real time), constraints (SLA, latency, data residency), target monthly budget.
+2. **Choose the compute service**: use the matrix below; when it is ambiguous, ask whether the team already knows Kubernetes.
+3. **Design the architecture**: network topology (VNet, Private Endpoints), security (Managed Identity, Key Vault), resilience (zones, geo-replication).
+4. **Provision**: copyable `az` commands, or Bicep and Terraform.
+5. **Optimise**: cost (Reserved, Spot, scale-to-zero), performance (profiling through App Insights), scalability.
 
 ---
 
-## Choix du service de compute
+## Choosing the compute service
 
-| Service | Usage idéal | Scale | Profil de coût |
+| Service | Ideal use | Scaling | Cost profile |
 |---|---|---|---|
-| **App Service** | API/app web .NET, Node, Python | Auto-scale par plan | Plancher fixe au plan, payé même à vide |
-| **Container Apps** | Microservices conteneurisés, Dapr | KEDA, scale-to-zero | Nul à l'arrêt, monte avec le trafic |
-| **Azure Functions** | Événementiel, triggers (HTTP, Queue, Timer) | Consumption auto | Le moins cher en dessous du palier gratuit |
-| **AKS** | Orchestration K8s complexe, multi-tenant | Node autoscaler + KEDA | Le plus cher : nœuds payés en continu |
-| **VM / VMSS** | Legacy, contrôle réseau total | Manual ou VMSS | Variable, dépend du dimensionnement |
+| **App Service** | Web app or API in .NET, Node, Python | Auto-scale within the plan | Fixed floor from the plan, paid even when idle |
+| **Container Apps** | Containerised microservices, Dapr | KEDA, scale-to-zero | Nothing when stopped, grows with traffic |
+| **Azure Functions** | Event-driven, triggers (HTTP, Queue, Timer) | Consumption, automatic | Cheapest below the free tier |
+| **AKS** | Complex Kubernetes orchestration, multi-tenant | Node autoscaler plus KEDA | The most expensive, nodes are paid continuously |
+| **VM and VMSS** | Legacy, total network control | Manual or VMSS | Variable, depends on sizing |
 
-> Les montants absolus varient par région, par palier et par engagement, et changent trop souvent
-> pour être fiables dans une fiche. Ce qui se retient, c'est l'ordre relatif :
-> vérifier le chiffre du jour avec `az pricing` ou le calculateur Azure.
+> Absolute figures vary by region, by tier and by commitment, and change far too often
+> to be trusted in a cheat sheet. What holds is the relative order:
+> check today's number with `az pricing` or the Azure calculator.
 
-### Arbre de décision
+### Decision tree
 
 ```
 Nouveau projet ?
-├── Traitements événementiels courts (< 10 min) → Azure Functions (Consumption)
-├── Microservices conteneurisés, trafic variable → Container Apps
-├── App web / API REST, équipe sans ops K8s    → App Service
-├── Besoin Kubernetes avancé (CRD, helm, réseau custom) → AKS
+├── Short event-driven processing (under 10 min) → Azure Functions (Consumption)
+├── Containerised microservices, variable traffic → Container Apps
+├── Web app or REST API, team with no K8s ops    → App Service
+├── Advanced Kubernetes needs (CRD, helm, custom networking) → AKS
 └── Migration lift-and-shift ou workload GPU   → VM / VMSS
 
 Migration d'un existant ?
 ├── App .NET monolithique IIS → App Service (Windows plan)
 ├── Docker Compose existant  → Container Apps
-└── Contrôle réseau très fin (BGP, ASN)        → AKS ou VMs
+└── Very fine network control (BGP, ASN)        → AKS or VMs
 ```
 
 ---
 
-## Provisionner, commandes copiables
+## Provisioning, copyable commands
 
-### Créer un Container Apps Environment + app
+### Create a Container Apps Environment and app
 
 ```bash
 # Variables
@@ -75,7 +75,7 @@ az containerapp create \
   --system-assigned                         # Managed Identity
 ```
 
-### Créer une Azure Function (Consumption)
+### Create an Azure Function (Consumption)
 
 ```bash
 az storage account create -n stfnmyapp -g $RG -l $LOCATION --sku Standard_LRS
@@ -88,7 +88,7 @@ az functionapp create \
   --assign-identity '[system]'
 ```
 
-### App Service + slot de staging
+### App Service with a staging slot
 
 ```bash
 az appservice plan create -n plan-myapp -g $RG --sku P2V3 --is-linux
@@ -100,12 +100,12 @@ az webapp deployment slot swap --name web-myapp -g $RG --slot staging
 
 ---
 
-## Architecture de référence, Container Apps (microservices)
+## Reference architecture, Container Apps microservices
 
 ```
 Internet
   → Azure Front Door (CDN + WAF)
-      → Container Apps Environment (VNet intégré)
+      → Container Apps Environment (VNet integrated)
             API Gateway (YARP / NGINX)
             ├── Service A  (scale-to-zero, KEDA Queue)
             ├── Service B  (min 1 replica)
@@ -119,13 +119,13 @@ Internet
 
 ---
 
-## Bonnes pratiques par service
+## Good practice per service
 
 ### Azure SQL
-- **Elastic Pools** si > 3 bases avec charge variable : économie 30–50 %.
-- **Active Geo-Replication** (lecture) ou **Failover Groups** (basculement auto) pour HA.
-- Alertes sur `DTU percentage > 80 %` ou `CPU percent > 85 %`.
-- Toujours se connecter via Managed Identity (pas de mot de passe SQL en config) :
+- **Elastic Pools** when running more than 3 databases with variable load: 30 to 50 percent saved.
+- **Active Geo-Replication** (read) or **Failover Groups** (automatic failover) for high availability.
+- Alerts on `DTU percentage > 80 %` or `CPU percent > 85 %`.
+- Always connect through Managed Identity, never an SQL password in configuration:
   ```csharp
   // EF Core + Azure Identity
   services.AddDbContext<AppDbContext>(o =>
@@ -133,17 +133,17 @@ Internet
   ```
 
 ### Azure Key Vault
-- **Jamais** de secrets dans App Settings, référencer Key Vault :
+- **Never** put secrets in App Settings, reference Key Vault instead:
   ```
   @Microsoft.KeyVault(SecretUri=https://kv-myapp.vault.azure.net/secrets/DbPassword/)
   ```
-- Politique d'accès : RBAC (`Key Vault Secrets User`) plutôt qu'Access Policies (déprécié).
-- Activer **Soft-Delete** (90 jours) et **Purge Protection** sur les KV de prod.
+- Access model: RBAC (`Key Vault Secrets User`) rather than Access Policies, which are deprecated.
+- Enable **Soft-Delete** (90 days) and **Purge Protection** on production vaults.
 
 ### Managed Identities
-- System-assigned pour les ressources éphémères (Functions, Container Apps).
-- User-assigned pour les identités partagées entre plusieurs services.
-- Attribution de rôle :
+- System-assigned for ephemeral resources (Functions, Container Apps).
+- User-assigned for identities shared between several services.
+- Role assignment:
   ```bash
   az role assignment create \
     --assignee <principal-id> \
@@ -152,51 +152,51 @@ Internet
   ```
 
 ### Application Insights
-- **Toujours** activer le Connection String (pas l'InstrumentationKey, déprécié).
-- Activer le **Sampling adaptatif** en prod pour limiter les coûts de télémétrie.
-- Custom metrics métier via `TelemetryClient.TrackMetric()` pour les SLA fonctionnels.
+- **Always** enable the Connection String, not the InstrumentationKey, which is deprecated.
+- Enable **adaptive sampling** in production to keep telemetry costs down.
+- Business custom metrics through `TelemetryClient.TrackMetric()` for the functional SLAs.
 
 ---
 
-## Optimisation des coûts
+## Cost optimisation
 
-| Levier | Économie estimée | Effort |
+| Lever | Estimated saving | Effort |
 |---|---|---|
-| Reserved Instances 1 an (App Service, AKS nodes) | 30–45 % | Faible |
-| Reserved Instances 3 ans | 50–65 % | Faible |
-| Spot VMs (batch, CI workers) | 60–90 % | Moyen |
-| Scale-to-zero (Container Apps, Functions) | Très élevé (idle = 0) | Nul |
-| Right-sizing (Azure Advisor) | 20–40 % | Moyen |
-| Azure Dev/Test subscription | 50–55 % sur VMs | Faible |
+| Reserved Instances, 1 year (App Service, AKS nodes) | 30 to 45 % | Low |
+| Reserved Instances, 3 years | 50 to 65 % | Low |
+| Spot VMs (batch, CI workers) | 60 to 90 % | Medium |
+| Scale-to-zero (Container Apps, Functions) | Very high, idle costs nothing | None |
+| Right-sizing (Azure Advisor) | 20 to 40 % | Medium |
+| Azure Dev/Test subscription | 50 to 55 % on VMs | Low |
 
 ```bash
-# Voir les recommandations Azure Advisor (coût)
+# See the Azure Advisor cost recommendations
 az advisor recommendation list --category Cost -o table
 ```
 
 ---
 
-## Garde-fous / Anti-patterns / Pièges
+## Guardrails, anti-patterns and pitfalls
 
-- **Ne jamais stocker des secrets dans les variables d'environnement** d'App Service ou Container Apps : utiliser Key Vault Reference.
-- **Ne pas utiliser le tier Consumption pour des Functions à latence < 200 ms** : cold start 1–3 s sur Consumption ; préférer Premium ou Flex Consumption (2024+).
-- **Éviter les connexions SQL avec SQL auth** en production : rotation de mots de passe coûteuse, Managed Identity est gratuit et plus sûr.
-- **Ne pas ouvrir les Container Apps sur `--ingress external` si l'API est interne** : utiliser `internal` + communication VNet.
-- **Pas de plan Shared/Free en prod** : absence de SLA, throttling CPU agressif.
-- **Ne pas négliger les Private Endpoints** : sans eux, le trafic Azure SQL/Storage transite sur l'internet public même dans un VNet.
-- **Log Analytics Workspace séparé par environnement** (pas prod + dev dans le même) : isolation des données et contrôle des coûts ingestion.
-- **AKS sans Cluster Autoscaler = surprovisionnement systématique** : toujours activer `--enable-cluster-autoscaler`.
+- **Never store secrets in the environment variables** of App Service or Container Apps: use a Key Vault Reference.
+- **Do not use the Consumption tier for Functions needing under 200 ms latency**: cold start runs 1 to 3 seconds there; prefer Premium or Flex Consumption (2024 onwards).
+- **Avoid SQL connections using SQL auth** in production: password rotation is expensive, Managed Identity is free and safer.
+- **Do not expose Container Apps with `--ingress external` when the API is internal**: use `internal` plus VNet communication.
+- **No Shared or Free plan in production**: no SLA, and aggressive CPU throttling.
+- **Do not skip Private Endpoints**: without them, Azure SQL and Storage traffic crosses the public internet even from inside a VNet.
+- **One Log Analytics Workspace per environment**, never production and dev in the same one: data isolation and control over ingestion costs.
+- **AKS without the Cluster Autoscaler means systematic overprovisioning**: always enable `--enable-cluster-autoscaler`.
 
 ---
 
-## Checklist déploiement production
+## Production deployment checklist
 
-- [ ] Managed Identity activée, aucun secret en clair
-- [ ] Key Vault avec Soft-Delete + Purge Protection
-- [ ] Private Endpoints sur SQL, Redis, Storage
-- [ ] Application Insights connecté (Connection String)
-- [ ] Alertes coût + métriques techniques configurées
-- [ ] Auto-scaling (min/max replicas ou App Service scale rules)
-- [ ] Slot de staging pour déploiement zero-downtime (App Service)
-- [ ] Azure Defender / Defender for Cloud activé sur les ressources critiques
-- [ ] Geo-Replication ou Failover Group sur Azure SQL si SLA > 99,9 %
+- [ ] Managed Identity enabled, no plaintext secret
+- [ ] Key Vault with Soft-Delete and Purge Protection
+- [ ] Private Endpoints on SQL, Redis and Storage
+- [ ] Application Insights connected (Connection String)
+- [ ] Cost alerts and technical metric alerts configured
+- [ ] Auto-scaling (min and max replicas, or App Service scale rules)
+- [ ] Staging slot for zero-downtime deployment (App Service)
+- [ ] Azure Defender for Cloud enabled on the critical resources
+- [ ] Geo-Replication or a Failover Group on Azure SQL when the SLA exceeds 99.9 %
