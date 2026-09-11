@@ -1,71 +1,71 @@
 ---
 name: dev-conventions
-description: Écrit du code, des commits et des branches conformes aux conventions du projet. Lit automatiquement CONTRIBUTING.md, AGENTS.md, .editorconfig et les configs de linter avant d'écrire, puis calque le style existant. Se déclenche avant toute écriture ou modification de code, avant un commit, avant la création d'une branche, ou avec "commit", "branche", "contributing", "convention", "code style", "linter".
+description: Writes code, commits and branches that match the conventions of the project. Automatically reads CONTRIBUTING.md, AGENTS.md, .editorconfig and the linter configuration before writing, then mirrors the existing style. Triggers before any code is written or modified, before a commit, before creating a branch, or on "commit", "branch", "contributing", "convention", "code style", "linter".
 user-invocable: true
 ---
 
-# Conventions dev : code, commits, branches
+# Dev conventions: code, commits, branches
 
-Objectif : ne jamais écrire au hasard. Toujours détecter les règles du projet d'abord, puis s'y conformer.
+Goal: never write at random. Always detect the rules of the project first, then comply with them.
 
-## Étape 1 — Détecter les conventions (AVANT d'écrire)
+## Step 1, detect the conventions (BEFORE writing)
 
-Lire, si présents, dans cet ordre (le plus spécifique gagne) :
+Read, when present, in this order, the most specific winning:
 
-1. `CONTRIBUTING.md` (et `CONTRIBUTING` sans extension, `docs/CONTRIBUTING.md`)
-2. `AGENTS.md`, `CLAUDE.md`, `.cursorrules` (règles agent du repo)
-3. `.editorconfig` (indentation, fins de ligne, charset)
-4. Config du formateur / linter selon la stack :
-   - JS/TS : `.prettierrc`, `.eslintrc*`, `biome.json`
-   - Python : `pyproject.toml` (ruff, black), `setup.cfg`, `.flake8`
-   - Go : `gofmt` implicite. Ruby : `.rubocop.yml`
-5. Scripts du gestionnaire de paquets (`package.json` scripts, `Makefile`, `justfile`) pour connaître lint/format/test.
+1. `CONTRIBUTING.md` (also `CONTRIBUTING` without extension, `docs/CONTRIBUTING.md`)
+2. `AGENTS.md`, `CLAUDE.md`, `.cursorrules` (agent rules of the repository)
+3. `.editorconfig` (indentation, line endings, charset)
+4. Formatter and linter configuration for the stack:
+   - JS and TS: `.prettierrc`, `.eslintrc*`, `biome.json`
+   - Python: `pyproject.toml` (ruff, black), `setup.cfg`, `.flake8`
+   - Go: `gofmt` is implicit. Ruby: `.rubocop.yml`
+5. Package manager scripts (`package.json` scripts, `Makefile`, `justfile`) to learn the lint, format and test commands.
 
-Si un `CONTRIBUTING.md` existe, ses règles priment sur les habitudes génériques.
+When a `CONTRIBUTING.md` exists, its rules override generic habits.
 
-## Étape 2 — Calquer le code existant
+## Step 2, mirror the existing code
 
-Avant d'écrire dans un fichier, regarder les fichiers voisins et imiter :
+Before writing into a file, look at the neighbouring files and imitate:
 
-- Indentation, guillemets, points-virgules.
-- Style de nommage (camelCase, snake_case, PascalCase).
-- Organisation des imports.
-- Densité de commentaires (ne pas commenter plus que le code autour).
+- Indentation, quotes, semicolons.
+- Naming style (camelCase, snake_case, PascalCase).
+- Import organisation.
+- Comment density, do not comment more than the surrounding code.
 
-Règles :
+Rules:
 
-- Ne pas introduire un style nouveau non justifié.
-- Pas de commentaire sauf pour un POURQUOI non évident.
-- Faire tourner le formateur / linter du projet si disponible, pas un format perso.
-- Jamais le tiret cadratin dans le code, les commentaires ou la doc. Virgule, deux-points ou parenthèses.
+- Do not introduce a new style without a reason.
+- No comment except for a WHY that is not obvious.
+- Run the formatter and linter of the project when available, never a personal format.
+- Never the em dash, in code, comments or documentation. Use a comma, a colon or parentheses.
 
-## Étape 3 — Commits
+## Step 3, commits
 
-1. Lire le style existant : `git log --oneline -20`.
-2. Si le repo utilise Conventional Commits (`feat:`, `fix:`, `chore:`...), suivre. Sinon, copier le style dominant du log.
-3. Sujet à l'impératif, court (≈50 caractères), sans point final.
-4. Corps seulement si le POURQUOI n'est pas évident. Expliquer le pourquoi, pas le quoi.
-5. Interdits stricts :
-   - Jamais de ligne `Co-Authored-By:`.
-   - Jamais le tiret cadratin.
+1. Read the existing style: `git log --oneline -20`.
+2. When the repository uses Conventional Commits (`feat:`, `fix:`, `chore:` and so on), follow it. Otherwise copy the dominant style of the log.
+3. Subject in the imperative, short (around 50 characters), with no full stop.
+4. A body only when the WHY is not obvious. Explain the why, not the what.
+5. Strictly forbidden:
+   - Never a `Co-Authored-By:` line.
+   - Never the em dash.
 
-Exemple :
+Example:
 
 ```
-feat(auth): ajoute refresh token
+feat(auth): add refresh token
 
-Session expirait au bout d'1h, forçait reconnexion. Refresh silencieux évite ça.
+Sessions expired after an hour and forced a re-login. A silent refresh avoids that.
 ```
 
-## Étape 4 — Branches
+## Step 4, branches
 
-1. Lire les noms existants : `git branch -a`.
-2. Suivre le motif dominant. Si aucun, défaut : `type/description-courte` en kebab-case.
+1. Read the existing names: `git branch -a`.
+2. Follow the dominant pattern. When there is none, default to `type/short-description` in kebab-case.
    - `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`.
-   - Exemple : `feat/refresh-token`, `fix/login-timeout`.
-3. Pas d'espaces, pas de majuscules, pas d'accents.
-4. Si `CONTRIBUTING.md` impose un format de branche, il prime.
+   - For example: `feat/refresh-token`, `fix/login-timeout`.
+3. No spaces, no capitals, no accents.
+4. When `CONTRIBUTING.md` imposes a branch format, it wins.
 
-## Rappel
+## Reminder
 
-Ne jamais commit ni push sans que l'utilisateur le demande. Sur branche par défaut (main/master), créer une branche d'abord.
+Never commit or push unless the user asks. On a default branch (main or master), create a branch first.
